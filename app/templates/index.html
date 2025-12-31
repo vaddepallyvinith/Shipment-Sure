@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delivery Prediction - Logistics AI</title>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Bootstrap grid only for layout if needed, but we used custom CSS -->
+    <style>
+        /* Small inline style to hide elements initially */
+        .hidden {
+            display: none;
+        }
+
+        .loading {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="main-container">
+        <!-- Hero Section -->
+        <header class="hero-section">
+            <h1>Logistics Intelligence</h1>
+            <p>Predict delivery performance using our advanced Random Forest model.</p>
+        </header>
+
+        <!-- Prediction Form -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Predict Order Status</h2>
+            </div>
+            <div class="card-body">
+                <form id="predictionForm">
+                    <!-- Section 1: Core Order Data -->
+                    <div class="section-title">Core Order Information</div>
+                    <div class="feature-group">
+                        <div class="feature-item">
+                            <label class="form-label" for="shipping_distance_km">Distance (km)*</label>
+                            <input type="number" step="any" name="shipping_distance_km" id="shipping_distance_km"
+                                class="form-control" placeholder="e.g. 500" required>
+                        </div>
+                        <div class="feature-item">
+                            <label class="form-label" for="order_quantity">Order Quantity*</label>
+                            <input type="number" step="any" name="order_quantity" id="order_quantity"
+                                class="form-control" placeholder="e.g. 50" required>
+                        </div>
+                        <div class="feature-item">
+                            <label class="form-label" for="unit_price">Unit Price ($)*</label>
+                            <input type="number" step="any" name="unit_price" id="unit_price" class="form-control"
+                                placeholder="e.g. 19.99" required>
+                        </div>
+                        <div class="feature-item">
+                            <label class="form-label" for="Promised_Lead_Time">Promised Lead Time (Days)*</label>
+                            <input type="number" step="any" name="Promised_Lead_Time" id="Promised_Lead_Time"
+                                class="form-control" placeholder="e.g. 5" required>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Supplier Analytics -->
+                    <div class="section-title">Supplier Performance</div>
+                    <div class="feature-group">
+                        <div class="feature-item">
+                            <label class="form-label" for="supplier_lead_time">Supplier Lead Time</label>
+                            <input type="number" step="any" name="supplier_lead_time" id="supplier_lead_time"
+                                class="form-control" placeholder="e.g. 3">
+                        </div>
+                        <div class="feature-item">
+                            <label class="form-label" for="previous_on_time_rate">Prev. On-Time Rate (0-1)</label>
+                            <input type="number" step="any" name="previous_on_time_rate" id="previous_on_time_rate"
+                                class="form-control" placeholder="e.g. 0.95">
+                        </div>
+                        <div class="feature-item">
+                            <label class="form-label" for="supplier_on_time_rate">Supplier On-Time Rate</label>
+                            <input type="number" step="any" name="supplier_on_time_rate" id="supplier_on_time_rate"
+                                class="form-control" placeholder="e.g. 0.9">
+                        </div>
+                        <div class="feature-item">
+                            <label class="form-label" for="supplier_rating">Supplier Rating</label>
+                            <select id="supplier_rating_select" class="form-control">
+                                <option value="3.0">3.0 - Average</option>
+                                <option value="4.0" selected>4.0 - Good</option>
+                                <option value="4.5">4.5 - Excellent</option>
+                                <option value="5.0">5.0 - Perfect</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Section 3: Logistics & Factors -->
+                    <div class="section-title">Logistics & Context</div>
+                    <div class="feature-group">
+                        <div class="feature-item">
+                            <label class="form-label" for="shipment_mode">Shipment Mode</label>
+                            <select id="shipment_mode_select" class="form-control">
+                                <option value="Road">Road</option>
+                                <option value="Sea">Sea</option>
+                                <option value="Air">Air (Other)</option>
+                            </select>
+                        </div>
+                        <div class="feature-item">
+                            <label class="form-label" for="carrier_name">Carrier Name</label>
+                            <select id="carrier_name_select" class="form-control">
+                                <option value="DHL">DHL</option>
+                                <option value="Delhivery">Delhivery</option>
+                                <option value="FedEx">FedEx</option>
+                                <option value="EcomExpress">EcomExpress</option>
+                            </select>
+                        </div>
+                        <div class="feature-item">
+                            <label class="form-label" for="region">Region</label>
+                            <select id="region_select" class="form-control">
+                                <option value="North">North</option>
+                                <option value="South">South</option>
+                                <option value="East">East</option>
+                                <option value="West">West</option>
+                            </select>
+                        </div>
+                        <div class="feature-item">
+                            <label class="form-label" for="weather_condition">Weather</label>
+                            <select id="weather_condition_select" class="form-control">
+                                <option value="Clear">Clear</option>
+                                <option value="Cloudy">Cloudy</option>
+                                <option value="Rainy">Rainy</option>
+                                <option value="Storm">Storm</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Section 4: Seasonality Checkboxes -->
+                    <div class="section-title">External Factors</div>
+                    <div class="feature-group" style="grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));">
+                        <div class="feature-item" style="flex-direction: row; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" id="Is_Peak_Season" name="Is_Peak_Season">
+                            <label class="form-label" style="margin: 0;" for="Is_Peak_Season">Peak Season</label>
+                        </div>
+                        <div class="feature-item" style="flex-direction: row; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" id="holiday_period_Yes" name="holiday_period_Yes">
+                            <label class="form-label" style="margin: 0;" for="holiday_period_Yes">Holiday Period</label>
+                        </div>
+                        <div class="feature-item" style="flex-direction: row; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" id="Is_Weekend_Order" name="Is_Weekend_Order">
+                            <label class="form-label" style="margin: 0;" for="Is_Weekend_Order">Weekend Order</label>
+                        </div>
+                        <div class="feature-item" style="flex-direction: row; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" id="Is_Weekend_Delivery" name="Is_Weekend_Delivery">
+                            <label class="form-label" style="margin: 0;" for="Is_Weekend_Delivery">Weekend Delivery
+                                Req.</label>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 2rem;">
+                        <button type="submit" class="btn-predict" id="submitBtn">Generate Prediction</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Result Section -->
+        <div class="card result-card" id="resultCard">
+            <div class="card-header">
+                <h2>Prediction Result</h2>
+            </div>
+            <div class="card-body">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                    <div>
+                        <div style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.25rem;">Status
+                            Prediction</div>
+                        <div id="predictedStatus" class="badge-on-time" style="font-size: 1.5rem;">On-Time</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.25rem;">Confidence
+                            Score</div>
+                        <div id="confidenceScore"
+                            style="font-size: 1.5rem; font-weight: 800; color: var(--primary-color);">94.5%</div>
+                    </div>
+                </div>
+
+                <div class="probability-bar">
+                    <div id="probabilityFill" class="probability-fill" style="width: 94.5%;"></div>
+                </div>
+                <p id="resultMessage" style="color: var(--text-muted); text-align: center; font-size: 0.95rem;">
+                    Based on current warehouse telemetry and shipping conditions.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript to handle 93-feature mapping -->
+    <script>
+        const featureNames = [
+            "supplier_lead_time", "shipping_distance_km", "order_quantity", "unit_price",
+            "total_order_value", "previous_on_time_rate", "Promised_Lead_Time",
+            "Is_Weekend_Order", "Is_Peak_Season", "Is_Weekend_Delivery",
+            "Month_sin", "Month_cos", "DayOfWeek_sin", "DayOfWeek_cos",
+            "DayOfYear_sin", "DayOfYear_cos", "supplier_on_time_rate",
+            "supplier_delay_rate", "supplier_count", "Reliable_Supplier",
+            "Risky_Supplier", "Experienced_Supplier", "Risk_Combo",
+            "Almost_Certain_OnTime", "Very_Likely_Delayed", "Safe_Combo",
+            "Extreme_Risk", "Cost_per_Day", "Distance_per_Day",
+            "log_Promised_Lead_Time", "sqrt_Promised_Lead_Time",
+            "log_shipping_distance_km", "sqrt_shipping_distance_km",
+            "log_unit_price", "sqrt_unit_price", "log_Risk_Combo",
+            "sqrt_Risk_Combo", "log_supplier_delay_rate", "sqrt_supplier_delay_rate",
+            "delayed_reason_code_Operational", "delayed_reason_code_Traffic",
+            "delayed_reason_code_Weather", "Lead_Bin_Fast", "Lead_Bin_Normal",
+            "Lead_Bin_Slow", "Lead_Bin_VerySlow", "Dist_Bin_Regional",
+            "Dist_Bin_National", "Dist_Bin_Continental", "Dist_Bin_International",
+            "Price_Quantile_MediumLow", "Price_Quantile_Medium",
+            "Price_Quantile_MediumHigh", "Price_Quantile_High",
+            "supplier_rating_2.6", "supplier_rating_2.7", "supplier_rating_2.8",
+            "supplier_rating_2.9", "supplier_rating_3.0", "supplier_rating_3.1",
+            "supplier_rating_3.2", "supplier_rating_3.3", "supplier_rating_3.4",
+            "supplier_rating_3.5", "supplier_rating_3.6", "supplier_rating_3.7",
+            "supplier_rating_3.8", "supplier_rating_3.9", "supplier_rating_4.0",
+            "supplier_rating_4.1", "supplier_rating_4.2", "supplier_rating_4.3",
+            "supplier_rating_4.4", "supplier_rating_4.5", "supplier_rating_4.6",
+            "supplier_rating_4.7", "supplier_rating_4.8", "supplier_rating_4.9",
+            "supplier_rating_5.0", "shipment_mode_Road", "shipment_mode_Sea",
+            "weather_condition_Cloudy", "weather_condition_Rainy",
+            "weather_condition_Storm", "region_East", "region_North",
+            "region_South", "region_West", "holiday_period_Yes",
+            "carrier_name_DHL", "carrier_name_Delhivery", "carrier_name_EcomExpress",
+            "carrier_name_FedEx"
+        ];
+
+        document.getElementById('predictionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const resultCard = document.getElementById('resultCard');
+
+            btn.innerText = 'Calculating...';
+            btn.classList.add('loading');
+
+            // Collect raw form values
+            const formData = new FormData(e.target);
+            const payload = Object.fromEntries(formData.entries());
+
+            // Add categorical selects manually (since they don't have name attributes on input)
+            payload.supplier_rating = document.getElementById('supplier_rating_select').value;
+            payload.shipment_mode = document.getElementById('shipment_mode_select').value;
+            payload.carrier_name = document.getElementById('carrier_name_select').value;
+            payload.region = document.getElementById('region_select').value;
+            payload.weather_condition = document.getElementById('weather_condition_select').value;
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.error) {
+                    alert('Error: ' + result.error);
+                } else {
+                    // Update UI
+                    resultCard.style.display = 'block';
+                    const statusEl = document.getElementById('predictedStatus');
+                    statusEl.innerText = result.predicted_class;
+                    statusEl.className = result.predicted_class === 'On-Time' ? 'badge-on-time' : 'badge-delayed';
+
+                    // Confidence is the probability of the predicted class
+                    const isDelayed = result.predicted_class === 'Delayed';
+                    const winningProb = isDelayed ? result.delayed_probability : result.on_time_probability;
+                    const confidence = (winningProb * 100).toFixed(1);
+
+                    document.getElementById('confidenceScore').innerText = confidence + '%';
+                    document.getElementById('probabilityFill').style.width = confidence + '%';
+
+                    // Update probability bar color based on outcome
+                    document.getElementById('probabilityFill').style.backgroundColor = isDelayed ? 'var(--danger-color)' : 'var(--success-color)';
+
+                    btn.innerText = 'Generate Prediction';
+                    btn.classList.remove('loading');
+
+                    // Smooth scroll to result
+                    resultCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            } catch (err) {
+                alert('Connection Error: ' + err.message);
+                btn.innerText = 'Generate Prediction';
+                btn.classList.remove('loading');
+            }
+        });
+    </script>
+</body>
+
+</html>
